@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Problem } from '../types';
 import { Difficulty } from '../types';
@@ -33,14 +32,6 @@ const generateProblemPrompt = (topic: string, difficulty: Difficulty): string =>
   return prompt;
 };
 
-const generateFollowUpProblemPrompt = (originalProblem: Problem, userAnswer: string, isCorrect: boolean): string => {
-  if (isCorrect) {
-    return `한 학생이 이 문제에 정답을 맞혔습니다: "${originalProblem.problem}". 정답은 "${originalProblem.answer}"이었습니다. 학생의 실력 향상을 위해 같은 주제에 대해 약간 더 어려운 새 문제를 생성해 주세요. 문제와 풀이는 모든 수학적 표기에 LaTeX를 사용해야 합니다. 제공된 스키마를 엄격히 준수하는 JSON 객체로 출력 형식을 지정해 주세요.`;
-  } else {
-    return `한 학생이 이 문제에 오답을 냈습니다: "${originalProblem.problem}". 학생의 답은 "${userAnswer}"이었지만, 정답은 "${originalProblem.answer}"이었습니다. 학생이 놓쳤을 수 있는 핵심 개념을 강화하는 비슷하지만 약간 더 쉬운 문제를 생성해 주세요. 문제와 풀이는 모든 수학적 표기에 LaTeX를 사용해야 합니다. 제공된 스키마를 엄격히 준수하는 JSON 객체로 출력 형식을 지정해 주세요.`;
-  }
-};
-
 
 const callGeminiApi = async (prompt: string): Promise<Problem> => {
   try {
@@ -73,10 +64,5 @@ const callGeminiApi = async (prompt: string): Promise<Problem> => {
 
 export const generateMathProblem = async (topic: string, difficulty: Difficulty): Promise<Problem> => {
     const prompt = generateProblemPrompt(topic, difficulty);
-    return callGeminiApi(prompt);
-};
-
-export const generateFollowUpProblem = async (originalProblem: Problem, userAnswer: string, isCorrect: boolean): Promise<Problem> => {
-    const prompt = generateFollowUpProblemPrompt(originalProblem, userAnswer, isCorrect);
     return callGeminiApi(prompt);
 };

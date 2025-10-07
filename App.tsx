@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { TOPICS, DIFFICULTIES } from './constants';
-import { generateMathProblem, generateFollowUpProblem } from './services/geminiService';
+import { generateMathProblem } from './services/geminiService';
 import type { Problem } from './types';
 import { Difficulty } from './types';
 import Spinner from './components/Spinner';
-import { CheckCircleIcon, XCircleIcon, LightBulbIcon } from './components/icons';
+import { LightBulbIcon, CopyIcon } from './components/icons';
 
 // MathJax global object declaration
 declare global {
@@ -16,16 +15,16 @@ declare global {
     }
 }
 
+type CopiedTextType = 'problem' | 'answer' | 'solution' | null;
+
 export default function App() {
   const [topic, setTopic] = useState<string>(TOPICS[0]);
   const [difficulty, setDifficulty] = useState<Difficulty>(Difficulty.Concept);
   const [problem, setProblem] = useState<Problem | null>(null);
-  const [userAnswer, setUserAnswer] = useState<string>('');
-  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
-  const [isCorrect, setIsCorrect] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const [copiedTextType, setCopiedTextType] = useState<CopiedTextType>(null);
+
   useEffect(() => {
     if (problem) {
       // Delay typesetting to ensure DOM is updated
@@ -37,57 +36,58 @@ export default function App() {
     }
   }, [problem]);
 
-  const resetProblemState = () => {
-    setUserAnswer('');
-    setIsSubmitted(false);
-    setIsCorrect(false);
-    setError(null);
-  };
-
-  const fetchProblem = useCallback(async (fetchFn: () => Promise<Problem>) => {
+  const handleGenerateProblem = useCallback(async () => {
     setIsLoading(true);
-    resetProblemState();
+    setError(null);
     setProblem(null);
     try {
-      const newProblem = await fetchFn();
+      const newProblem = await generateMathProblem(topic, difficulty);
       setProblem(newProblem);
     } catch (err) {
       setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
-  }, []);
-
-  const handleGenerateProblem = () => {
-    fetchProblem(() => generateMathProblem(topic, difficulty));
+  }, [topic, difficulty]);
+  
+  const handleCopy = (textToCopy: string, type: CopiedTextType) => {
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        setCopiedTextType(type);
+        setTimeout(() => setCopiedTextType(null), 2000); // Reset after 2 seconds
+    }).catch(err => {
+        console.error('클립보드 복사 실패:', err);
+    });
   };
 
-  const handleFollowUpProblem = (correct: boolean) => {
-    if (!problem) return;
-    const lastProblem = problem;
-    const lastAnswer = userAnswer;
-    fetchProblem(() => generateFollowUpProblem(lastProblem, lastAnswer, correct));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!problem || userAnswer.trim() === '') return;
-    // Normalize answers: remove spaces and compare. Consider more robust normalization for complex answers.
-    const correctAnswer = problem.answer.toString().trim().toLowerCase();
-    const normalizedUserAnswer = userAnswer.trim().toLowerCase();
-    
-    setIsCorrect(correctAnswer === normalizedUserAnswer);
-    setIsSubmitted(true);
-  };
+  const renderContentCard = (title: string, content: string, type: 'problem' | 'answer' | 'solution') => (
+    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="font-semibold text-gray-700">{title}</h3>
+        <button
+          onClick={() => handleCopy(content, type)}
+          className="flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md text-gray-600 bg-gray-200 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          {copiedTextType === type ? (
+            <>복사 완료!</>
+          ) : (
+            <><CopyIcon className="h-4 w-4" /> 복사</>
+          )}
+        </button>
+      </div>
+      <div className="text-base leading-relaxed prose max-w-none">
+        <p>{content}</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-            개인 맞춤형 수학 연습
+            수학 문제 생성 도구
           </h1>
-          <p className="text-sm text-gray-600 mt-1">AI 기반 중학교 수학 문제 생성</p>
+          <p className="text-sm text-gray-600 mt-1">AI 기반 데이터베이스용 문제 콘텐츠 생성기</p>
         </div>
       </header>
       
@@ -145,74 +145,15 @@ export default function App() {
               {!isLoading && !problem && !error && (
                  <div className="flex-grow flex flex-col items-center justify-center text-center text-gray-500">
                     <LightBulbIcon className="h-12 w-12 mb-4"/>
-                    <h3 className="text-xl font-semibold">환영합니다!</h3>
-                    <p className="max-w-md mt-2">주제와 난이도를 선택한 후 "문제 생성하기"를 클릭하여 맞춤형 연습을 시작하세요.</p>
+                    <h3 className="text-xl font-semibold">콘텐츠 생성기</h3>
+                    <p className="max-w-md mt-2">주제와 난이도를 선택한 후 "문제 생성하기"를 클릭하여 문제, 정답, 풀이를 생성하세요.</p>
                 </div>
               )}
               {problem && (
-                <div className="flex-grow flex flex-col">
-                  <div id="problem-statement" className="text-lg leading-relaxed mb-6 prose max-w-none">
-                    <p>{problem.problem}</p>
-                  </div>
-                  
-                  <form onSubmit={handleSubmit} className="mt-auto">
-                    <div className="flex items-center gap-4">
-                      <input
-                        type="text"
-                        value={userAnswer}
-                        onChange={(e) => setUserAnswer(e.target.value)}
-                        placeholder="정답을 입력하세요"
-                        disabled={isSubmitted}
-                        className="flex-grow block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100"
-                        aria-label="Answer input"
-                      />
-                      <button
-                        type="submit"
-                        disabled={isSubmitted || isLoading}
-                        className="px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-green-400"
-                      >
-                        제출
-                      </button>
-                    </div>
-                  </form>
-                  
-                  {isSubmitted && (
-                    <div className="mt-6">
-                      <div className={`p-4 rounded-md flex items-start gap-3 ${isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {isCorrect ? <CheckCircleIcon className="h-6 w-6 text-green-500" /> : <XCircleIcon className="h-6 w-6 text-red-500" />}
-                        <div>
-                          <h3 className="font-bold">{isCorrect ? '정답입니다!' : '오답입니다'}</h3>
-                          <p className="text-sm mt-1">
-                            정답은 <strong>{problem.answer}</strong> 입니다.
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-4 p-4 border rounded-md bg-gray-50">
-                        <h4 className="font-semibold text-gray-700 mb-2">풀이:</h4>
-                        <div id="solution" className="text-sm prose max-w-none">
-                            <p>{problem.solution}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-6 flex flex-col sm:flex-row gap-4">
-                        <button 
-                          onClick={() => handleFollowUpProblem(true)}
-                          className="w-full sm:w-auto flex-1 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                        >
-                          다음 문제 (더 어렵게)
-                        </button>
-                        {!isCorrect && (
-                           <button 
-                             onClick={() => handleFollowUpProblem(false)}
-                             className="w-full sm:w-auto flex-1 px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                           >
-                             비슷한 문제 (더 쉽게)
-                           </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                <div className="space-y-4">
+                  {renderContentCard("문제", problem.problem, 'problem')}
+                  {renderContentCard("정답", problem.answer, 'answer')}
+                  {renderContentCard("풀이", problem.solution, 'solution')}
                 </div>
               )}
             </div>
