@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Problem } from '../types';
+import type { Problem, Level } from '../types';
 import { Difficulty } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
@@ -23,8 +23,8 @@ const problemSchema = {
   required: ["problem", "answer", "solution"]
 };
 
-const generateProblemPrompt = (topic: string, difficulty: Difficulty): string => {
-  let prompt = `"${topic}"에 대한 "${difficulty}" 난이도의 중학교 수학 문제를 생성해 주세요.`;
+const generateProblemPrompt = (level: Level, topic: string, difficulty: Difficulty): string => {
+  let prompt = `"${level}" 과정의 "${topic}"에 대한 "${difficulty}" 난이도의 수학 문제를 생성해 주세요.`;
   if (difficulty === Difficulty.Concept) {
     prompt += ` 이것은 학생의 핵심 개념 이해도를 확인하기 위한 기본적인 질문이어야 합니다.`
   }
@@ -62,7 +62,7 @@ const callGeminiApi = async (prompt: string): Promise<Problem> => {
 };
 
 
-export const generateMathProblem = async (topic: string, difficulty: Difficulty): Promise<Problem> => {
-    const prompt = generateProblemPrompt(topic, difficulty);
+export const generateMathProblem = async (level: Level, topic: string, difficulty: Difficulty): Promise<Problem> => {
+    const prompt = generateProblemPrompt(level, topic, difficulty);
     return callGeminiApi(prompt);
 };
