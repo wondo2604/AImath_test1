@@ -1,0 +1,5 @@
+{
+  "name": "Personalized Math Problem Generator",
+  "description": "An AI-powered application that generates personalized middle school math problems based on topic and difficulty, providing instant feedback and solutions to create an adaptive learning experience.",
+  "requestFramePermissions": []
+}
